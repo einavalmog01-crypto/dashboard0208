@@ -8,11 +8,11 @@ export interface JiraConfig {
 }
 
 export const defaultJiraConfig: JiraConfig = {
-  baseUrl: "",
+  baseUrl: "https://deljira",
   email: "",
   apiToken: "",
-  projectKey: "",
-  boardId: "",
+  projectKey: "VFDE",
+  boardId: "4033",
   isConfigured: false,
 }
 

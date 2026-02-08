@@ -33,26 +33,46 @@ export function RecentTests() {
   };
 
   useEffect(() => {
-    const fetchRecentTests = async () => {
-      try {
-        const res = await fetch("/api/recent-tests");
-        const data: RecentTest[] = await res.json();
+    // Load recent tests from sanityReports (same source the Test Runner saves to)
+    try {
+      const raw = localStorage.getItem("sanityReports");
+      if (raw) {
+        const reports: {
+          id: string;
+          type: string;
+          environment: string;
+          createdAt: string;
+          tests: { name: string; status: "PASS" | "FAILED"; error: string }[];
+        }[] = JSON.parse(raw);
 
-        // Add formatted time
-        const formatted = data.map((t) => ({
-          ...t,
-          time: formatTimeAgo(t.time),
-        }));
+        // Flatten reports into individual test entries
+        const allTests: RecentTest[] = [];
+        for (const report of reports) {
+          for (const test of report.tests) {
+            allTests.push({
+              id: `${report.id}-${test.name}`,
+              name: test.name,
+              status: test.status === "PASS" ? "passed" : "failed",
+              environment: report.environment,
+              time: report.createdAt,
+              type: report.type,
+            });
+          }
+        }
 
-        setRecentTests(formatted.slice(0, 10)); // Keep most recent 10
-      } catch (err) {
-        console.error("Error fetching recent tests:", err);
-      } finally {
-        setLoading(false);
+        // Sort by time descending and format
+        const sorted = allTests
+          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+          .slice(0, 10)
+          .map((t) => ({ ...t, time: formatTimeAgo(t.time) }));
+
+        setRecentTests(sorted);
       }
-    };
-
-    fetchRecentTests();
+    } catch (err) {
+      console.error("Error loading recent tests:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   return (

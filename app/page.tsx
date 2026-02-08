@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentTests } from "@/components/dashboard/recent-tests"
+import { Button } from "@/components/ui/button"
 import { Play, CheckCircle, XCircle, ListChecks } from "lucide-react"
 import type { SanityReport } from "@/lib/sanity-reports"
 
@@ -81,16 +83,6 @@ export default function DashboardPage() {
     setStats(calculateStats(reports))
   }, [])
 
-  // ✅ ADDED — ONLY WHAT YOU ASKED FOR
-  async function handleRunTests() {
-    const res = await fetch("/api/run-tests", {
-      method: "POST",
-    })
-
-    const data = await res.json()
-    console.log("Test result:", data.result)
-  }
-
   return (
     <DashboardLayout
       title="Dashboard"
@@ -98,11 +90,14 @@ export default function DashboardPage() {
     >
       <div className="space-y-6">
 
-        {/* ✅ ADDED BUTTON — ONLY WHAT YOU ASKED FOR */}
-        <div>
-          <button onClick={handleRunTests}>
-            Run Tests
-          </button>
+        <div className="flex items-center justify-between">
+          <div />
+          <Button asChild>
+            <Link href="/runner">
+              <Play className="h-4 w-4 mr-2" />
+              Go to Test Runner
+            </Link>
+          </Button>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

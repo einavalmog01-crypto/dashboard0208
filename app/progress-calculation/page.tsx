@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState, useCallback, DragEvent } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, Loader2, CloudOff, Cloud } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { RefreshCw, Loader2, CloudOff, Cloud, Settings, AlertTriangle } from "lucide-react"
 import { UserStory, Status, KANBAN_COLUMNS, STATUS_COLORS, StoryModal } from "./modal-helpers"
 import { loadJiraConfig, isJiraConfigured, type JiraConfig } from "@/lib/jira-config"
 
@@ -165,9 +167,6 @@ export default function ProgressCalculationPage() {
           {lastSynced && (
             <span className="text-xs text-muted-foreground">Last synced: {lastSynced}</span>
           )}
-          {syncError && (
-            <span className="text-xs text-destructive">{syncError}</span>
-          )}
           <Button
             size="sm"
             variant="outline"
@@ -183,6 +182,32 @@ export default function ProgressCalculationPage() {
           </Button>
         </div>
       </div>
+
+      {/* Jira config alert */}
+      {jiraConfig && !isJiraConfigured(jiraConfig) && (
+        <Alert variant="default" className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="flex items-center justify-between">
+            <span className="text-sm text-amber-800">
+              Jira is not configured yet. Add your email and API token in Settings to enable board sync.
+            </span>
+            <Button variant="outline" size="sm" asChild className="ml-4 shrink-0">
+              <Link href="/settings">
+                <Settings className="h-3.5 w-3.5 mr-1.5" />
+                Go to Settings
+              </Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Sync error alert */}
+      {syncError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="text-sm">{syncError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-4 items-center flex-wrap">
