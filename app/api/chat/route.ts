@@ -1,5 +1,5 @@
 import { getActiveEnvironment } from "@/app/get-active-environment"
-import { runSshCommand } from "@/app/ssh/run-ssh-command.server"
+import { runSshCommand } from "@/lib/ssh/run-ssh-command.server"
 
 export async function POST(req: Request) {
   try {
