@@ -1,14 +1,24 @@
-import { getActiveEnvironment } from "@/app/get-active-environment"
+import { getActiveEnvironment } from "@/lib/get-active-environment"
 import { runSshCommand } from "@/lib/ssh/run-ssh-command.server"
 
 export async function POST(req: Request) {
   try {
     const { message } = await req.json()
-    const env = await getActiveEnvironment()
+    const selectedEnv = req.headers.get("x-env")
 
-    if (!env) {
+    if (!selectedEnv) {
       return new Response(
         JSON.stringify({ error: "No active environment selected" }),
+        { status: 400 }
+      )
+    }
+
+    let env
+    try {
+      env = getActiveEnvironment(selectedEnv)
+    } catch {
+      return new Response(
+        JSON.stringify({ error: `Environment "${selectedEnv}" not found` }),
         { status: 400 }
       )
     }
