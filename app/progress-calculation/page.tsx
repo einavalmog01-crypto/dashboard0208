@@ -1,9 +1,12 @@
 "use client"
 
-import { useEffect, useState, DragEvent } from "react"
+import { useEffect, useState, useCallback, DragEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { RefreshCw, Loader2, CloudOff, Cloud } from "lucide-react"
 import { UserStory, Status, KANBAN_COLUMNS, STATUS_COLORS, StoryModal } from "./modal-helpers"
+import { loadJiraConfig, isJiraConfigured, type JiraConfig } from "@/lib/jira-config"
 
 export default function ProgressCalculationPage() {
   const [stories, setStories] = useState<UserStory[]>([])
@@ -14,10 +17,59 @@ export default function ProgressCalculationPage() {
   const [draggedStoryId, setDraggedStoryId] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<Status | null>(null)
 
+  // Jira sync state
+  const [jiraConfig, setJiraConfig] = useState<JiraConfig | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSynced, setLastSynced] = useState<string | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
   useEffect(() => {
+    const config = loadJiraConfig()
+    setJiraConfig(config)
     const saved = localStorage.getItem("progressStories")
     if (saved) setStories(JSON.parse(saved))
+    const syncTime = localStorage.getItem("progressLastSynced")
+    if (syncTime) setLastSynced(syncTime)
   }, [])
+
+  const syncFromJira = useCallback(async () => {
+    if (!jiraConfig || !isJiraConfigured(jiraConfig)) return
+
+    setIsSyncing(true)
+    setSyncError(null)
+
+    try {
+      const res = await fetch("/api/jira/board", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: jiraConfig.baseUrl,
+          email: jiraConfig.email,
+          apiToken: jiraConfig.apiToken,
+          projectKey: jiraConfig.projectKey,
+          boardId: jiraConfig.boardId,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || `Sync failed (${res.status})`)
+      }
+
+      const data = await res.json()
+      const jiraStories: UserStory[] = data.issues
+      setStories(jiraStories)
+      localStorage.setItem("progressStories", JSON.stringify(jiraStories))
+      const now = new Date().toLocaleString()
+      setLastSynced(now)
+      localStorage.setItem("progressLastSynced", now)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error"
+      setSyncError(message)
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [jiraConfig])
 
   const assignees = Array.from(new Set(stories.map(s => s.assignee).filter(Boolean)))
 
@@ -95,7 +147,41 @@ export default function ProgressCalculationPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Progress Calculation</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Progress Calculation</h1>
+          {jiraConfig && isJiraConfigured(jiraConfig) ? (
+            <Badge variant="secondary" className="text-xs">
+              <Cloud className="h-3 w-3 mr-1" />
+              Jira: {jiraConfig.projectKey}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              <CloudOff className="h-3 w-3 mr-1" />
+              Jira not configured
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {lastSynced && (
+            <span className="text-xs text-muted-foreground">Last synced: {lastSynced}</span>
+          )}
+          {syncError && (
+            <span className="text-xs text-destructive">{syncError}</span>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={syncFromJira}
+            disabled={isSyncing || !jiraConfig || !isJiraConfigured(jiraConfig)}
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-1" />
+            )}
+            {isSyncing ? "Syncing..." : "Sync from Jira"}
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

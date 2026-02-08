@@ -1,27 +1,35 @@
-import { getActiveEnvironment } from "@/lib/get-active-environment"
 import { runSshCommand } from "@/lib/ssh/run-ssh-command.server"
+import type { EnvironmentConfig } from "@/lib/environment-config"
+
+interface ChatRequest {
+  message: string
+  environment: string
+  config: {
+    auth: { username: string; password: string }
+    endpoint: { host: string }
+    unix: { hostName: string; port: string; userName: string; password: string }
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    const { message } = await req.json()
-    const selectedEnv = req.headers.get("x-env")
+    const body: ChatRequest = await req.json()
+    const { message, environment, config } = body
 
-    if (!selectedEnv) {
+    if (!environment || !config?.unix?.hostName) {
       return new Response(
-        JSON.stringify({ error: "No active environment selected" }),
+        JSON.stringify({ error: "Missing environment configuration. Please configure the environment in Settings." }),
         { status: 400 }
       )
     }
 
-    let env
-    try {
-      env = getActiveEnvironment(selectedEnv)
-    } catch {
-      return new Response(
-        JSON.stringify({ error: `Environment "${selectedEnv}" not found` }),
-        { status: 400 }
-      )
-    }
+    // Build a minimal EnvironmentConfig for runSshCommand
+    const env = {
+      name: environment,
+      unix: config.unix,
+      auth: config.auth,
+      endpoint: config.endpoint,
+    } as EnvironmentConfig
 
     // Call JESI chat handler
     const reply = await runSshCommand(

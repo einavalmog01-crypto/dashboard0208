@@ -17,7 +17,9 @@ import {
   FileText,
   Bug,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
+import { useEnvironment } from "@/lib/environment-context";
 
 interface Message {
   id: string;
@@ -50,6 +52,7 @@ const suggestedPrompts = [
 ];
 
 export default function ChatPage() {
+  const { selectedEnv, currentEnvironmentConfig } = useEnvironment();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -62,6 +65,8 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isEnvConfigured = currentEnvironmentConfig?.isConfigured ?? false;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -83,12 +88,32 @@ export default function ChatPage() {
     setInput("");
     setIsLoading(true);
 
-    // ✅ Real backend call to /api/chat
+    // Real backend call to /api/chat
     try {
+      if (!currentEnvironmentConfig || !isEnvConfigured) {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: `Environment "${selectedEnv}" is not configured. Please go to Settings and configure it first.`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setIsLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          environment: selectedEnv,
+          config: {
+            auth: currentEnvironmentConfig.auth,
+            endpoint: currentEnvironmentConfig.endpoint,
+            unix: currentEnvironmentConfig.unix,
+          },
+        }),
       });
 
       const data = await res.json();
@@ -133,8 +158,8 @@ export default function ChatPage() {
                 Powered by Autonation AI
               </p>
             </div>
-            <Badge variant="secondary" className="ml-auto">
-              Online
+            <Badge variant={isEnvConfigured ? "secondary" : "destructive"} className="ml-auto">
+              {isEnvConfigured ? `${selectedEnv} Connected` : `${selectedEnv} Not Configured`}
             </Badge>
           </div>
         </div>
